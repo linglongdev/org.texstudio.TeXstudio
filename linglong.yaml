@@ -1,0 +1,99 @@
+version: "1"
+
+package:
+  id: org.texstudio.TeXstudio
+  name: TeXstudio
+  version: 4.8.1.0
+  kind: app
+  description: |
+    TeXstudio is an integrated writing environment for creating LaTeX documents.
+
+base: org.deepin.foundation/23.0.0
+runtime: org.deepin.Runtime/23.0.1
+
+command:
+  - /opt/apps/org.texstudio.TeXstudio/files/bin/texstudio
+
+
+build: |
+  # install packages
+  install_pkg=$(realpath "./install_pkg.sh")
+  include_pkg='liblcms2-2'
+  exclude_pkg=''
+  bash $install_pkg -i -d $(realpath 'linglong/sources') -p $PREFIX -I \"$include_pkg\" -E \"$exclude_pkg\"
+  export LD_LIBRARY_PATH=$PREFIX/lib/$TRIPLET:$LD_LIBRARY_PATH
+  
+  # build poppler
+  cd /project/linglong/sources/poppler.git
+  cmake -Bbuild \
+        -DCMAKE_INSTALL_PREFIX=/project/linglong/sources/poppler.git/build_ins \
+        -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib/$TRIPLET \
+        -DCMAKE_BUILD_TYPE=release \
+        -DENABLE_QT6=OFF
+  cd build
+  make -j$(nproc)
+  make install
+  
+  # build TeXstudio
+  cd /project/linglong/sources/texstudio.git
+  sed -i '474c \		REGEX .*en_US.*|.*fr_FR.*|.*ru_RU.*' CMakeLists.txt
+  mkdir build
+  cd build
+  . ../.github/scripts/get-version.sh
+  cmake -DCMAKE_INSTALL_PREFIX=$PREFIX .. -Wno-dev
+  . ../git_revision.sh
+  cmake --build . --target install -- -j 2
+  
+  # uninstall dev packages
+  bash $install_pkg -u -r '\-dev' -D
+  
+  rm -r $PREFIX/lib/$TRIPLET/pkgconfig $PREFIX/share/pkgconfig $PREFIX/share/man $PREFIX/share/doc
+  strip -s $PREFIX/bin/* $PREFIX/lib/$TRIPLET/*
+
+
+sources:
+  # poppler
+  - kind: git
+    url: https://github.com/deepin-community/poppler.git
+    version: master
+    commit: f4af7afea9d63fa495f1c5a0ccac2edc633e15bd
+  # TeXstudio
+  - kind: git
+    url: https://github.com/texstudio-org/texstudio.git
+    version: 4.8.1
+    commit: e21bf65c70c0e14548898ff0ad58b6921cec44a9
+  # packages: poppler-data,libopenjp2-7-dev,libopenjp2-7,libquazip5-dev,libquazip5-1,liblcms2-dev,liblcms2-2,libnss3-dev,libnspr4-dev,libcurl4-openssl-dev,libcurl4
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/p/poppler-data/poppler-data_0.4.11-1_all.deb
+    digest: b578b333ed90dc3c0e785ff3233455cf1eceb71ff602ffd30debed215ee34e2e
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/o/openjpeg2/libopenjp2-7-dev_2.5.0-2_amd64.deb
+    digest: c48717a78839cdf65f5fdcbcb8cd211f8763a782fbefc066730804904cf8d5a1
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/o/openjpeg2/libopenjp2-7_2.5.0-2_amd64.deb
+    digest: 1d7109a9c3f29c8bde7b4f92866d28860ee641dcfe3a718f4b730f845e63a4a4
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/community/libq/libquazip/libquazip5-dev_0.9.1-3deepin1_amd64.deb
+    digest: a6e393c5669d09d2cc201a3b56d8b87d86334b8b086dd1c2173445958f694f62
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/community/libq/libquazip/libquazip5-1_0.9.1-3deepin1_amd64.deb
+    digest: 7c6d352166c5ee009c8616db339cc47b3147e847c05ec28287c2602fc1b2459a
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/l/lcms2/liblcms2-dev_2.14-2_amd64.deb
+    digest: 129824080ce539c696a2696223de64ec2745031ed1a38d7915213aea370908bf
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/l/lcms2/liblcms2-2_2.14-2_amd64.deb
+    digest: a8630b7a9f07ca87612fdfe486941211598f4fe3148235746f001e68ce91114b
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/n/nss/libnss3-dev_3.100-1_amd64.deb
+    digest: d01ffe7d9789dcd3683b4d52e9aaf69cc3f4732cdc78515fcb34c2a4236632c0
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/n/nspr/libnspr4-dev_4.35-1deepin1_amd64.deb
+    digest: 326ae3c1622a38bcf3e245e7bd2567b0fd4d5f247da5df59aa919303917039ba
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/c/curl/libcurl4-openssl-dev_8.5.0-2_amd64.deb
+    digest: 273ce1a75b0e8b1e31f0ce3d8441f9c42cfa9729c55ebef528bc2157dc3d7a02
+  - kind: file
+    url: https://mirrors.ustc.edu.cn/deepin/beige/pool/main/c/curl/libcurl4_8.5.0-2_amd64.deb
+    digest: 6e3d5ad17b738939a392e5f7eb00c1f129529834ca62b053e677ad03e6a1e12c
+  
